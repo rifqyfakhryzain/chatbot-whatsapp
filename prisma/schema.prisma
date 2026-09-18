@@ -13,6 +13,8 @@ model User {
   phoneNumber String   @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  schedules Schedule[]
 }
 
 model Shift {
@@ -24,4 +26,18 @@ model Shift {
   workHours Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  schedules Schedule[]
+}
+
+model Schedule {
+  id        String   @id @default(cuid())
+  userId    String
+  shiftId   String
+  date      DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id])
+  shift Shift @relation(fields: [shiftId], references: [id])
 }
