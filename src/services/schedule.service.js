@@ -6,7 +6,15 @@ const getSchedules = async () => {
 };
 
 const getScheduleById = async (id) => {
-  return await scheduleRepository.findById(id);
+  const schedule = await scheduleRepository.findById(id);
+
+  if (!schedule) {
+    const error = new Error("Schedule not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return schedule;
 };
 
 const createSchedule = async (data) => {
@@ -18,11 +26,31 @@ const createSchedule = async (data) => {
 const updateSchedule = async (id, data) => {
   const validatedData = scheduleSchema.parse(data);
 
-  return await scheduleRepository.updateById(id, validatedData);
+  try {
+    return await scheduleRepository.updateById(id, validatedData);
+  } catch (error) {
+    if (error.code === "P2025") {
+      const notFoundError = new Error("Schedule not found");
+      notFoundError.statusCode = 404;
+      throw notFoundError;
+    }
+
+    throw error;
+  }
 };
 
 const deleteSchedule = async (id) => {
-  return await scheduleRepository.deleteById(id);
+  try {
+    return await scheduleRepository.deleteById(id);
+  } catch (error) {
+    if (error.code === "P2025") {
+      const notFoundError = new Error("Schedule not found");
+      notFoundError.statusCode = 404;
+      throw notFoundError;
+    }
+
+    throw error;
+  }
 };
 
 module.exports = {
