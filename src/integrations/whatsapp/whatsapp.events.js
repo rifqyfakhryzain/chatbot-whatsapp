@@ -1,5 +1,7 @@
 const { logMessage } = require("../../utils/logger");
 const { sendTextMessage } = require("./whatsapp.service");
+const { parseCommand } = require("./whatsapp.command");
+const { handleCommand } = require("./whatsapp.handler");
 
 function registerWhatsAppEvents(socket) {
   socket.ev.on("messages.upsert", async (event) => {
@@ -22,6 +24,8 @@ function registerWhatsAppEvents(socket) {
         message.message?.conversation ||
         message.message?.extendedTextMessage?.text;
 
+      const parsedCommand = parseCommand(text);
+
       const messageLog = [
         "Incoming WhatsApp message",
         `From: ${remoteJid}`,
@@ -30,15 +34,24 @@ function registerWhatsAppEvents(socket) {
 
       logMessage(messageLog);
 
-      if (!text) {
+      if (!parsedCommand) {
         continue;
       }
 
-      await sendTextMessage(
-        socket,
-        remoteJid,
-        "Halo! Pesan kamu sudah diterima.",
+      logMessage(
+        `Command detected: ${parsedCommand.command}\nArgs: ${JSON.stringify(
+          parsedCommand.args,
+        )}`,
       );
+
+      const responseText = handleCommand(
+        parsedCommand.command,
+        parsedCommand.args,
+      );
+
+      if (responseText) {
+        await sendTextMessage(socket, remoteJid, responseText);
+      }
     }
   });
 }
