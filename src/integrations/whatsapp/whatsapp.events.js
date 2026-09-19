@@ -2,6 +2,7 @@ const { logMessage } = require("../../utils/logger");
 const { sendTextMessage } = require("./whatsapp.service");
 const { parseCommand } = require("./whatsapp.command");
 const { handleCommand } = require("./whatsapp.handler");
+const { resolvePhoneNumber } = require("./whatsapp.identity");
 
 function registerWhatsAppEvents(socket) {
   socket.ev.on("messages.upsert", async (event) => {
@@ -24,8 +25,6 @@ function registerWhatsAppEvents(socket) {
         message.message?.conversation ||
         message.message?.extendedTextMessage?.text;
 
-      const parsedCommand = parseCommand(text);
-
       const messageLog = [
         "Incoming WhatsApp message",
         `From: ${remoteJid}`,
@@ -33,6 +32,8 @@ function registerWhatsAppEvents(socket) {
       ].join("\n");
 
       logMessage(messageLog);
+
+      const parsedCommand = parseCommand(text);
 
       if (!parsedCommand) {
         continue;
@@ -44,9 +45,14 @@ function registerWhatsAppEvents(socket) {
         )}`,
       );
 
-      const responseText = handleCommand(
+      const phoneNumber = await resolvePhoneNumber(socket, remoteJid);
+
+      logMessage(`Resolved phone number: ${phoneNumber || "[not found]"}`);
+
+      const responseText = await handleCommand(
         parsedCommand.command,
         parsedCommand.args,
+        phoneNumber,
       );
 
       if (responseText) {
