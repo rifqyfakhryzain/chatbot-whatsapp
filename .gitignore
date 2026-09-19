@@ -13,3 +13,5 @@ yarn-error.log*
 PRD/
 
 auth/
+
+logs/
