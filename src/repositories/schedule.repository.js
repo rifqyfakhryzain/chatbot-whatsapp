@@ -18,6 +18,9 @@ const findByUserAndDate = async (userId, date) => {
       userId,
       date,
     },
+    include: {
+      shift: true,
+    },
   });
 };
 
@@ -29,6 +32,9 @@ const findByUserAndDateRange = async (userId, startDate, endDate) => {
         gte: startDate,
         lt: endDate,
       },
+    },
+    include: {
+      shift: true,
     },
     orderBy: {
       date: "asc",
