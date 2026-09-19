@@ -1,7 +1,8 @@
 const { logMessage } = require("../../utils/logger");
+const { sendTextMessage } = require("./whatsapp.service");
 
 function registerWhatsAppEvents(socket) {
-  socket.ev.on("messages.upsert", (event) => {
+  socket.ev.on("messages.upsert", async (event) => {
     if (event.type !== "notify") {
       return;
     }
@@ -28,6 +29,16 @@ function registerWhatsAppEvents(socket) {
       ].join("\n");
 
       logMessage(messageLog);
+
+      if (!text) {
+        continue;
+      }
+
+      await sendTextMessage(
+        socket,
+        remoteJid,
+        "Halo! Pesan kamu sudah diterima.",
+      );
     }
   });
 }
