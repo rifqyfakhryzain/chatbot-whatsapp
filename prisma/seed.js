@@ -15,6 +15,10 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
+  // =========================
+  // 1. Seed Shift
+  // =========================
+
   const shifts = [
     {
       code: "O",
@@ -83,6 +87,107 @@ async function main() {
   }
 
   console.log("Shift seed berhasil!");
+
+  // =========================
+  // 2. Seed User
+  // =========================
+
+  const user = await prisma.user.upsert({
+    where: {
+      phoneNumber: "6281234567890",
+    },
+    update: {
+      name: "User Test",
+    },
+    create: {
+      name: "User Test",
+      phoneNumber: "6281234567890",
+    },
+  });
+
+  console.log("User seed berhasil!");
+
+  // =========================
+  // 3. Ambil Shift
+  // =========================
+
+  const shiftMap = {};
+
+  for (const shift of shifts) {
+    const data = await prisma.shift.findUnique({
+      where: {
+        code: shift.code,
+      },
+    });
+
+    shiftMap[shift.code] = data;
+  }
+
+  // =========================
+  // 4. Seed Schedule
+  // =========================
+
+  const schedules = [
+    {
+      date: new Date("2026-09-19T00:00:00.000Z"),
+      shiftCode: "M",
+    },
+    {
+      date: new Date("2026-09-20T00:00:00.000Z"),
+      shiftCode: "M1",
+    },
+    {
+      date: new Date("2026-09-21T00:00:00.000Z"),
+      shiftCode: "O",
+    },
+    {
+      date: new Date("2026-09-22T00:00:00.000Z"),
+      shiftCode: "O2",
+    },
+    {
+      date: new Date("2026-09-23T00:00:00.000Z"),
+      shiftCode: "M2",
+    },
+    {
+      date: new Date("2026-09-24T00:00:00.000Z"),
+      shiftCode: "O1",
+    },
+    {
+      date: new Date("2026-09-25T00:00:00.000Z"),
+      shiftCode: "H",
+    },
+  ];
+
+  for (const schedule of schedules) {
+    const existingSchedule = await prisma.schedule.findFirst({
+      where: {
+        userId: user.id,
+        date: schedule.date,
+      },
+    });
+
+    if (existingSchedule) {
+      await prisma.schedule.update({
+        where: {
+          id: existingSchedule.id,
+        },
+        data: {
+          shiftId: shiftMap[schedule.shiftCode].id,
+        },
+      });
+    } else {
+      await prisma.schedule.create({
+        data: {
+          userId: user.id,
+          shiftId: shiftMap[schedule.shiftCode].id,
+          date: schedule.date,
+        },
+      });
+    }
+  }
+
+  console.log("Schedule seed berhasil!");
+  console.log("Semua development seed berhasil!");
 }
 
 main()

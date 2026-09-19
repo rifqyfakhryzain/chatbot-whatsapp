@@ -12,6 +12,30 @@ const findById = async (id) => {
   });
 };
 
+const findByUserAndDate = async (userId, date) => {
+  return await prisma.schedule.findFirst({
+    where: {
+      userId,
+      date,
+    },
+  });
+};
+
+const findByUserAndDateRange = async (userId, startDate, endDate) => {
+  return await prisma.schedule.findMany({
+    where: {
+      userId,
+      date: {
+        gte: startDate,
+        lt: endDate,
+      },
+    },
+    orderBy: {
+      date: "asc",
+    },
+  });
+};
+
 const create = async (data) => {
   return await prisma.schedule.create({
     data,
@@ -38,6 +62,8 @@ const deleteById = async (id) => {
 module.exports = {
   findAll,
   findById,
+  findByUserAndDate,
+  findByUserAndDateRange,
   create,
   updateById,
   deleteById,
