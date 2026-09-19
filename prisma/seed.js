@@ -15,9 +15,7 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  // =========================
-  // 1. Seed Shift
-  // =========================
+  // Seed Shift
 
   const shifts = [
     {
@@ -88,28 +86,49 @@ async function main() {
 
   console.log("Shift seed berhasil!");
 
-  // =========================
-  // 2. Seed User
-  // =========================
+  // Seed User
 
-  const user = await prisma.user.upsert({
-    where: {
-      phoneNumber: "6281234567890",
+  const users = [
+    {
+      name: "Marsha Ananda Darajat",
+      phoneNumber: "6285719925638",
     },
-    update: {
-      name: "User Test",
+    {
+      name: "Ismutiar",
+      phoneNumber: "6281321125584",
     },
-    create: {
-      name: "User Test",
-      phoneNumber: "6281234567890",
+    {
+      name: "Ida Farida",
+      phoneNumber: "6285295034040",
     },
-  });
+    {
+      name: "Alya Zulfa Latifah",
+      phoneNumber: "6289676224685",
+    },
+  ];
+
+  const userRecords = {};
+
+  for (const userData of users) {
+    const user = await prisma.user.upsert({
+      where: {
+        phoneNumber: userData.phoneNumber,
+      },
+      update: {
+        name: userData.name,
+      },
+      create: {
+        name: userData.name,
+        phoneNumber: userData.phoneNumber,
+      },
+    });
+
+    userRecords[userData.name] = user;
+  }
 
   console.log("User seed berhasil!");
 
-  // =========================
-  // 3. Ambil Shift
-  // =========================
+  // Ambil shift
 
   const shiftMap = {};
 
@@ -123,42 +142,94 @@ async function main() {
     shiftMap[shift.code] = data;
   }
 
-  // =========================
-  // 4. Seed Schedule
-  // =========================
+  // Seed Schedule
 
   const schedules = [
     {
+      user: "Marsha Ananda Darajat",
       date: new Date("2026-09-19T00:00:00.000Z"),
       shiftCode: "M",
     },
     {
+      user: "Marsha Ananda Darajat",
       date: new Date("2026-09-20T00:00:00.000Z"),
       shiftCode: "M1",
     },
     {
-      date: new Date("2026-09-21T00:00:00.000Z"),
+      user: "Marsha Ananda Darajat",
+      date: new Date("2026-09-22T00:00:00.000Z"),
       shiftCode: "O",
     },
     {
-      date: new Date("2026-09-22T00:00:00.000Z"),
+      user: "Marsha Ananda Darajat",
+      date: new Date("2026-09-24T00:00:00.000Z"),
       shiftCode: "O2",
     },
+
     {
-      date: new Date("2026-09-23T00:00:00.000Z"),
+      user: "Marsha Ananda Darajat",
+      date: new Date("2026-09-26T00:00:00.000Z"),
       shiftCode: "M2",
     },
     {
-      date: new Date("2026-09-24T00:00:00.000Z"),
+      user: "Marsha Ananda Darajat",
+      date: new Date("2026-09-27T00:00:00.000Z"),
+      shiftCode: "O1",
+    },
+
+    {
+      user: "Ismutiar",
+      date: new Date("2026-09-19T00:00:00.000Z"),
+      shiftCode: "O",
+    },
+
+    {
+      user: "Ismutiar",
+      date: new Date("2026-09-21T00:00:00.000Z"),
       shiftCode: "O1",
     },
     {
+      user: "Ismutiar",
+      date: new Date("2026-09-23T00:00:00.000Z"),
+      shiftCode: "M",
+    },
+    {
+      user: "Ismutiar",
       date: new Date("2026-09-25T00:00:00.000Z"),
-      shiftCode: "H",
+      shiftCode: "M1",
+    },
+    {
+      user: "Ismutiar",
+      date: new Date("2026-09-27T00:00:00.000Z"),
+      shiftCode: "O2",
+    },
+
+    {
+      user: "Ida Farida",
+      date: new Date("2026-09-20T00:00:00.000Z"),
+      shiftCode: "M2",
+    },
+
+    {
+      user: "Ida Farida",
+      date: new Date("2026-09-22T00:00:00.000Z"),
+      shiftCode: "O",
+    },
+    {
+      user: "Ida Farida",
+      date: new Date("2026-09-24T00:00:00.000Z"),
+      shiftCode: "M1",
+    },
+    {
+      user: "Ida Farida",
+      date: new Date("2026-09-26T00:00:00.000Z"),
+      shiftCode: "O1",
     },
   ];
 
   for (const schedule of schedules) {
+    const user = userRecords[schedule.user];
+
     const existingSchedule = await prisma.schedule.findFirst({
       where: {
         userId: user.id,
