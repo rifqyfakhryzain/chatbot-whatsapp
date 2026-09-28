@@ -1,5 +1,28 @@
 const userService = require("../../services/user.service");
 const scheduleService = require("../../services/schedule.service");
+const {
+  createWeeklyScheduleDraft,
+} = require("../../services/weekly-schedule.service");
+const {
+  saveConfirmedWeeklySchedule,
+} = require("../../services/weekly-schedule-save.service");
+const {
+  updateWeeklySchedule,
+} = require("../../services/weekly-schedule-update.service");
+const {
+  setPendingSchedule,
+  getPendingSchedule,
+  clearPendingSchedule,
+} = require("../../services/pending-weekly-schedule.service");
+const {
+  parseWeeklyScheduleUpdate,
+} = require("../../utils/weekly-schedule-update-parser");
+const {
+  formatWeeklySchedulePreview,
+} = require("../../utils/weekly-schedule-preview");
+const {
+  parseScheduleConfirmation,
+} = require("../../utils/weekly-schedule-confirmation");
 
 function formatSchedule(schedule) {
   const date = new Date(schedule.date);
@@ -28,12 +51,16 @@ function formatSchedules(schedules, emptyMessage) {
   return schedules.map(formatSchedule).join("\n\n");
 }
 
-async function handleScheduleCommand(args, phoneNumber) {
+async function getUserByPhoneNumber(phoneNumber) {
   if (!phoneNumber) {
-    return "Nomor WhatsApp tidak dapat dikenali.";
+    return null;
   }
 
-  const user = await userService.getUserByPhoneNumber(phoneNumber);
+  return await userService.getUserByPhoneNumber(phoneNumber);
+}
+
+async function handleScheduleCommand(args, phoneNumber) {
+  const user = await getUserByPhoneNumber(phoneNumber);
 
   if (!user) {
     return "User belum terdaftar.";
@@ -72,6 +99,104 @@ async function handleScheduleCommand(args, phoneNumber) {
   ].join("\n");
 }
 
+async function handleUpdateScheduleCommand(args, phoneNumber) {
+  const user = await getUserByPhoneNumber(phoneNumber);
+
+  if (!user) {
+    return "User belum terdaftar.";
+  }
+
+  const input = `/update ${args.join(" ")}`;
+
+  try {
+    const updateData = parseWeeklyScheduleUpdate(input);
+
+    const result = await updateWeeklySchedule(user.id, updateData, new Date());
+
+    return [
+      "Jadwal berhasil diperbarui.",
+      "",
+      `${result.day} (${result.date}) : ${result.shiftCode}`,
+    ].join("\n");
+  } catch (error) {
+    return error.message;
+  }
+}
+
+async function handleWeeklyScheduleInput(text, phoneNumber) {
+  const user = await getUserByPhoneNumber(phoneNumber);
+
+  if (!user) {
+    return "User belum terdaftar.";
+  }
+
+  try {
+    const draft = await createWeeklyScheduleDraft(text, new Date());
+
+    setPendingSchedule(user.id, draft);
+
+    return formatWeeklySchedulePreview(draft);
+  } catch (error) {
+    return error.message;
+  }
+}
+
+async function handleScheduleConfirmation(text, phoneNumber) {
+  const user = await getUserByPhoneNumber(phoneNumber);
+
+  if (!user) {
+    return "User belum terdaftar.";
+  }
+
+  const confirmation = parseScheduleConfirmation(text);
+
+  if (confirmation.confirmed === null) {
+    return null;
+  }
+
+  const pendingSchedule = getPendingSchedule(user.id);
+
+  if (!pendingSchedule) {
+    return "Tidak ada draft jadwal yang menunggu konfirmasi.";
+  }
+
+  if (!confirmation.confirmed) {
+    clearPendingSchedule(user.id);
+
+    return "Draft jadwal dibatalkan.";
+  }
+
+  try {
+    await saveConfirmedWeeklySchedule(user.id, pendingSchedule);
+
+    clearPendingSchedule(user.id);
+
+    return "Jadwal mingguan berhasil disimpan.";
+  } catch (error) {
+    return error.message;
+  }
+}
+
+async function handleMessage(text, phoneNumber) {
+  if (!text || !text.trim()) {
+    return null;
+  }
+
+  const normalizedText = text.trim();
+
+  const confirmation = parseScheduleConfirmation(normalizedText);
+
+  if (confirmation.confirmed !== null) {
+    return await handleScheduleConfirmation(normalizedText, phoneNumber);
+  }
+
+  if (normalizedText.includes("\n")) {
+    return await handleWeeklyScheduleInput(normalizedText, phoneNumber);
+  }
+
+  return null;
+}
+
 async function handleCommand(command, args, phoneNumber) {
   if (command === "help") {
     return [
@@ -81,6 +206,7 @@ async function handleCommand(command, args, phoneNumber) {
       "/jadwal hari ini",
       "/jadwal besok",
       "/jadwal minggu",
+      "/update jadwal Hari SHIFT",
       "/reminder",
       "/settings",
       "/help",
@@ -91,9 +217,14 @@ async function handleCommand(command, args, phoneNumber) {
     return await handleScheduleCommand(args, phoneNumber);
   }
 
+  if (command === "update") {
+    return await handleUpdateScheduleCommand(args, phoneNumber);
+  }
+
   return "Command tidak dikenali. Ketik /help untuk melihat daftar command.";
 }
 
 module.exports = {
   handleCommand,
+  handleMessage,
 };

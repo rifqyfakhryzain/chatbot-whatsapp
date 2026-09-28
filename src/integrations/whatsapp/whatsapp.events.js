@@ -1,7 +1,7 @@
 const { logMessage } = require("../../utils/logger");
 const { sendTextMessage } = require("./whatsapp.service");
 const { parseCommand } = require("./whatsapp.command");
-const { handleCommand } = require("./whatsapp.handler");
+const { handleCommand, handleMessage } = require("./whatsapp.handler");
 const { resolvePhoneNumber } = require("./whatsapp.identity");
 
 function registerWhatsAppEvents(socket) {
@@ -35,25 +35,29 @@ function registerWhatsAppEvents(socket) {
 
       const parsedCommand = parseCommand(text);
 
-      if (!parsedCommand) {
-        continue;
-      }
-
-      logMessage(
-        `Command detected: ${parsedCommand.command}\nArgs: ${JSON.stringify(
-          parsedCommand.args,
-        )}`,
-      );
-
       const phoneNumber = await resolvePhoneNumber(socket, remoteJid);
 
       logMessage(`Resolved phone number: ${phoneNumber || "[not found]"}`);
 
-      const responseText = await handleCommand(
-        parsedCommand.command,
-        parsedCommand.args,
-        phoneNumber,
-      );
+      let responseText = null;
+
+      if (parsedCommand) {
+        logMessage(
+          `Command detected: ${parsedCommand.command}\nArgs: ${JSON.stringify(
+            parsedCommand.args,
+          )}`,
+        );
+
+        responseText = await handleCommand(
+          parsedCommand.command,
+          parsedCommand.args,
+          phoneNumber,
+        );
+      } else {
+        logMessage("Non-command message detected.");
+
+        responseText = await handleMessage(text, phoneNumber);
+      }
 
       if (responseText) {
         await sendTextMessage(socket, remoteJid, responseText);
