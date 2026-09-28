@@ -67,6 +67,13 @@ async function main() {
       endTime: null,
       workHours: 4,
     },
+    {
+      code: "X",
+      name: "Free Day",
+      startTime: null,
+      endTime: null,
+      workHours: 0,
+    },
   ];
 
   for (const shift of shifts) {
