@@ -9,6 +9,9 @@ const findById = async (id) => {
     where: {
       id,
     },
+    include: {
+      shift: true,
+    },
   });
 };
 

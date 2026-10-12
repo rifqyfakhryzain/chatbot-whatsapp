@@ -1,5 +1,6 @@
 const scheduleRepository = require("../repositories/schedule.repository");
 const userRepository = require("../repositories/user.repository");
+const reminderService = require("./reminder.service");
 const { resolveWeeklyDates } = require("../utils/weekly-date-resolver");
 const { calculateSchedule } = require("./schedule-calculator.service");
 
@@ -61,6 +62,8 @@ async function updateHalfDayStartTime(
   const travelDuration = user?.travelDuration ?? 30;
 
   const calculated = calculateSchedule(fullSchedule, travelDuration);
+
+  await reminderService.syncReminderForSchedule(fullSchedule, travelDuration);
 
   return {
     day,

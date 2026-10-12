@@ -1,5 +1,7 @@
 const scheduleRepository = require("../repositories/schedule.repository");
 const scheduleService = require("./schedule.service");
+const reminderService = require("./reminder.service");
+const userRepository = require("../repositories/user.repository");
 
 async function saveConfirmedWeeklySchedule(userId, draft) {
   if (!userId) {
@@ -9,6 +11,9 @@ async function saveConfirmedWeeklySchedule(userId, draft) {
   if (!draft || !Array.isArray(draft.schedules)) {
     throw new Error("Draft jadwal tidak valid.");
   }
+
+  const user = await userRepository.findById(userId);
+  const travelDuration = user?.travelDuration ?? 30;
 
   const savedSchedules = [];
 
@@ -37,6 +42,11 @@ async function saveConfirmedWeeklySchedule(userId, draft) {
       shiftId: schedule.shiftId,
       date: schedule.date,
     });
+
+    await reminderService.syncReminderForSchedule(
+      savedSchedule,
+      travelDuration
+    );
 
     savedSchedules.push(savedSchedule);
   }

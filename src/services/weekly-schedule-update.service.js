@@ -1,6 +1,8 @@
 const scheduleRepository = require("../repositories/schedule.repository");
 const shiftRepository = require("../repositories/shift.repository");
 const scheduleService = require("./schedule.service");
+const reminderService = require("./reminder.service");
+const userRepository = require("../repositories/user.repository");
 
 const { resolveWeeklyDates } = require("../utils/weekly-date-resolver");
 
@@ -55,6 +57,14 @@ async function updateWeeklySchedule(userId, updateData, referenceDate) {
       shiftId: shift.id,
       date: targetDay.date,
     },
+  );
+
+  const user = await userRepository.findById(userId);
+  const travelDuration = user?.travelDuration ?? 30;
+
+  await reminderService.syncReminderForSchedule(
+    { ...updatedSchedule, shift },
+    travelDuration
   );
 
   return {
