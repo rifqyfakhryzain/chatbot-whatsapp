@@ -5,6 +5,13 @@ const pino = require("pino");
 const createWhatsAppAuth = require("./whatsapp.auth");
 const registerWhatsAppEvents = require("./whatsapp.events");
 const { logQR, saveQR, logConnection } = require("../../utils/logger");
+const { setSocketGetter, startScheduler } = require("../../services/scheduler.service");
+
+let currentSocket = null;
+
+function getWhatsAppSocket() {
+  return currentSocket;
+}
 
 async function createWhatsAppClient() {
   const { state, saveCreds } = await createWhatsAppAuth();
@@ -32,9 +39,13 @@ async function createWhatsAppClient() {
 
     if (connection === "open") {
       logConnection("WhatsApp connected");
+      currentSocket = socket;
+      setSocketGetter(getWhatsAppSocket);
+      startScheduler();
     }
 
     if (connection === "close") {
+      currentSocket = null;
       const statusCode = lastDisconnect?.error?.output?.statusCode;
 
       logConnection("WhatsApp connection closed");
@@ -81,5 +92,7 @@ async function createWhatsAppClient() {
 
   return socket;
 }
+
+createWhatsAppClient.getWhatsAppSocket = getWhatsAppSocket;
 
 module.exports = createWhatsAppClient;

@@ -24,8 +24,13 @@ const {
   parseScheduleConfirmation,
 } = require("../../utils/weekly-schedule-confirmation");
 const {
+  calculateSchedule,
   calculateSchedules,
 } = require("../../services/schedule-calculator.service");
+const reminderService = require("../../services/reminder.service");
+const {
+  formatReminderStatus,
+} = require("../../utils/reminder-formatter");
 const {
   getTravelDuration,
   updateTravelDuration,
@@ -239,6 +244,32 @@ async function handleHalfDayCommand(args, phoneNumber) {
   }
 }
 
+async function handleReminderCommand(phoneNumber) {
+  const user = await getUserByPhoneNumber(phoneNumber);
+
+  if (!user) {
+    return "User belum terdaftar.";
+  }
+
+  const travelDuration = await getTravelDuration(user.id);
+  const todaySchedules = await scheduleService.getTodaySchedule(user.id);
+
+  if (!todaySchedules || todaySchedules.length === 0) {
+    return "Tidak ada jadwal kerja untuk hari ini.";
+  }
+
+  const schedule = todaySchedules[0];
+  const calculated = calculateSchedule(schedule, travelDuration);
+
+  if (calculated.status === "OFF" || calculated.isOff) {
+    return "🏖️ Hari ini LIBUR. Tidak ada pengingat kerja yang aktif.";
+  }
+
+  const reminder = await reminderService.getTodayReminderForUser(user.id);
+
+  return formatReminderStatus(reminder, calculated);
+}
+
 async function handleCommand(command, args, phoneNumber) {
   if (command === "help") {
     return [
@@ -251,6 +282,7 @@ async function handleCommand(command, args, phoneNumber) {
       "/update jadwal Hari SHIFT",
       "/perjalanan [menit]",
       "/set-h <Hari> <Jam>",
+      "/reminder",
       "/help",
     ].join("\n");
   }
@@ -269,6 +301,10 @@ async function handleCommand(command, args, phoneNumber) {
 
   if (command === "set-h" || command === "seth") {
     return await handleHalfDayCommand(args, phoneNumber);
+  }
+
+  if (command === "reminder") {
+    return await handleReminderCommand(phoneNumber);
   }
 
   return "Command tidak dikenali. Ketik /help untuk melihat daftar command.";
