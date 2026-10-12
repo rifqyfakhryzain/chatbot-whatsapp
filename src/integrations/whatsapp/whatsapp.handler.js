@@ -23,33 +23,26 @@ const {
 const {
   parseScheduleConfirmation,
 } = require("../../utils/weekly-schedule-confirmation");
-
-function formatSchedule(schedule) {
-  const date = new Date(schedule.date);
-
-  const dateText = date.toLocaleDateString("id-ID", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-
-  const shift = schedule.shift;
-
-  return [
-    `📅 ${dateText}`,
-    `Shift: ${shift.code} - ${shift.name}`,
-    `Jam: ${shift.startTime || "-"} - ${shift.endTime || "-"}`,
-  ].join("\n");
-}
-
-function formatSchedules(schedules, emptyMessage) {
-  if (!schedules || schedules.length === 0) {
-    return emptyMessage;
-  }
-
-  return schedules.map(formatSchedule).join("\n\n");
-}
+const {
+  calculateSchedules,
+} = require("../../services/schedule-calculator.service");
+const {
+  getTravelDuration,
+  updateTravelDuration,
+} = require("../../services/travel-duration.service");
+const {
+  updateHalfDayStartTime,
+} = require("../../services/schedule-halfday.service");
+const {
+  parseHalfDayInput,
+} = require("../../utils/schedule-halfday-parser");
+const {
+  formatDailySchedules,
+  formatWeeklySchedulesSummary,
+  formatTravelDurationInfo,
+  formatTravelDurationSuccess,
+  formatHalfDaySuccess,
+} = require("../../utils/schedule-time-formatter");
 
 async function getUserByPhoneNumber(phoneNumber) {
   if (!phoneNumber) {
@@ -66,6 +59,7 @@ async function handleScheduleCommand(args, phoneNumber) {
     return "User belum terdaftar.";
   }
 
+  const travelDuration = await getTravelDuration(user.id);
   const subCommand = args[0]?.toLowerCase();
 
   if (
@@ -73,20 +67,27 @@ async function handleScheduleCommand(args, phoneNumber) {
     (subCommand === "hari" && args[1]?.toLowerCase() === "ini")
   ) {
     const schedules = await scheduleService.getTodaySchedule(user.id);
+    const calculated = calculateSchedules(schedules, travelDuration);
 
-    return formatSchedules(schedules, "Tidak ada jadwal untuk hari ini.");
+    return formatDailySchedules(calculated, "Tidak ada jadwal untuk hari ini.");
   }
 
   if (subCommand === "besok") {
     const schedules = await scheduleService.getTomorrowSchedule(user.id);
+    const calculated = calculateSchedules(schedules, travelDuration);
 
-    return formatSchedules(schedules, "Tidak ada jadwal untuk besok.");
+    return formatDailySchedules(calculated, "Tidak ada jadwal untuk besok.");
   }
 
   if (subCommand === "minggu") {
     const schedules = await scheduleService.getWeeklySchedules(user.id);
+    const calculated = calculateSchedules(schedules, travelDuration);
 
-    return formatSchedules(schedules, "Tidak ada jadwal untuk minggu ini.");
+    return formatWeeklySchedulesSummary(
+      calculated,
+      travelDuration,
+      "Tidak ada jadwal untuk minggu ini."
+    );
   }
 
   return [
@@ -197,6 +198,47 @@ async function handleMessage(text, phoneNumber) {
   return null;
 }
 
+async function handleTravelDurationCommand(args, phoneNumber) {
+  const user = await getUserByPhoneNumber(phoneNumber);
+
+  if (!user) {
+    return "User belum terdaftar.";
+  }
+
+  if (!args || args.length === 0 || !args[0]) {
+    const currentDuration = await getTravelDuration(user.id);
+    return formatTravelDurationInfo(currentDuration);
+  }
+
+  try {
+    const result = await updateTravelDuration(user.id, args[0]);
+    return formatTravelDurationSuccess(result.travelDuration);
+  } catch (error) {
+    return error.message;
+  }
+}
+
+async function handleHalfDayCommand(args, phoneNumber) {
+  const user = await getUserByPhoneNumber(phoneNumber);
+
+  if (!user) {
+    return "User belum terdaftar.";
+  }
+
+  try {
+    const parsedInput = parseHalfDayInput(args);
+    const result = await updateHalfDayStartTime(
+      user.id,
+      parsedInput,
+      new Date()
+    );
+
+    return formatHalfDaySuccess(result);
+  } catch (error) {
+    return error.message;
+  }
+}
+
 async function handleCommand(command, args, phoneNumber) {
   if (command === "help") {
     return [
@@ -207,8 +249,8 @@ async function handleCommand(command, args, phoneNumber) {
       "/jadwal besok",
       "/jadwal minggu",
       "/update jadwal Hari SHIFT",
-      "/reminder",
-      "/settings",
+      "/perjalanan [menit]",
+      "/set-h <Hari> <Jam>",
       "/help",
     ].join("\n");
   }
@@ -219,6 +261,14 @@ async function handleCommand(command, args, phoneNumber) {
 
   if (command === "update") {
     return await handleUpdateScheduleCommand(args, phoneNumber);
+  }
+
+  if (command === "perjalanan" || command === "travel") {
+    return await handleTravelDurationCommand(args, phoneNumber);
+  }
+
+  if (command === "set-h" || command === "seth") {
+    return await handleHalfDayCommand(args, phoneNumber);
   }
 
   return "Command tidak dikenali. Ketik /help untuk melihat daftar command.";
