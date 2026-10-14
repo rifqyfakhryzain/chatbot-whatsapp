@@ -57,7 +57,6 @@ async function checkAndSendReminders() {
       await markReminderSent(reminder.id, new Date());
 
       const logText = `[REMINDER OTW] Terkirim ke ${user.name || cleanPhone} (${jid}) untuk Shift ${calculated.shiftCode}`;
-      console.log(logText);
       logMessage(logText);
 
       sentCount++;
